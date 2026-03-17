@@ -1,20 +1,22 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-
 	"game-tracker-api-go/database"
 	"game-tracker-api-go/handlers"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 
 	database.Connect()
 
-	http.HandleFunc("/games", handlers.GetGames)
+	database.RunMigrations()
 
-	fmt.Println("Servidor rodando na porta 8080")
+	r := gin.Default()
 
-	http.ListenAndServe(":8080", nil)
+	r.GET("/games", handlers.GetGames)
+	r.POST("/games", handlers.CreateGame)
+
+	r.Run(":8080")
 }
