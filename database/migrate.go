@@ -10,6 +10,7 @@ func RunMigrations() {
 	files := []string{
 		"migrations/001_create_games.sql",
 		"migrations/002_seed_games.sql",
+		"migrations/003_create_users.sql",
 	}
 
 	for _, file := range files {

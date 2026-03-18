@@ -1,104 +1,156 @@
 package handlers
 
 import (
-	"fmt"
+	"net/http"
+
 	"game-tracker-api-go/database"
 	"game-tracker-api-go/models"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-func GetGames(c *gin.Context) {
+// =========================
+// CREATE GAME
+// =========================
 
-	status := c.Query("status")
-	year := c.Query("year")
-	name := c.Query("name")
+// CreateGame godoc
+// @Summary Cria um jogo
+// @Tags games
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param input body models.Game true "Jogo"
+// @Success 200 {object} map[string]string
+// @Router /games [post]
+func CreateGame(c *gin.Context) {
 
-	query := `
-	SELECT id, name, status, year_completed, rating, notes
-	FROM games
-	WHERE 1=1
-	`
+	// 🔐 pegar usuário do JWT
+	username := c.GetString("username")
 
-	args := []interface{}{}
-	index := 1
+	var userID int
 
-	if status != "" {
-		query += fmt.Sprintf(" AND status=$%d", index)
-		args = append(args, status)
-		index++
-	}
-
-	if year != "" {
-		query += fmt.Sprintf(" AND year_completed=$%d", index)
-		args = append(args, year)
-		index++
-	}
-
-	if name != "" {
-		query += fmt.Sprintf(" AND name ILIKE $%d", index)
-		args = append(args, "%"+name+"%")
-		index++
-	}
-
-	rows, err := database.DB.Query(query, args...)
+	err := database.DB.QueryRow(
+		"SELECT id FROM users WHERE username=$1",
+		username,
+	).Scan(&userID)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "usuário não encontrado"})
 		return
 	}
-
-	defer rows.Close()
-
-	var games []models.Game
-
-	for rows.Next() {
-
-		var g models.Game
-
-		rows.Scan(
-			&g.ID,
-			&g.Name,
-			&g.Status,
-			&g.YearCompleted,
-			&g.Rating,
-			&g.Notes,
-		)
-
-		games = append(games, g)
-	}
-
-	c.JSON(http.StatusOK, games)
-}
-
-func CreateGame(c *gin.Context) {
 
 	var game models.Game
 
+	// 📥 receber JSON
 	if err := c.ShouldBindJSON(&game); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	query := `
-	INSERT INTO games (name, status, year_completed, rating, notes)
-	VALUES ($1,$2,$3,$4,$5)
-	RETURNING id
-	`
-
-	err := database.DB.QueryRow(
-		query,
+	// 💾 inserir no banco
+	_, err = database.DB.Exec(`
+		INSERT INTO games (name, status, year_completed, rating, notes, user_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`,
 		game.Name,
 		game.Status,
 		game.YearCompleted,
 		game.Rating,
 		game.Notes,
-	).Scan(&game.ID)
+		userID,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "jogo criado com sucesso",
+	})
+}
+
+// =========================
+// GET GAMES
+// =========================
+
+// GetGames godoc
+// @Summary Lista jogos do usuário
+// @Tags games
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {array} models.Game
+// @Router /games [get]
+func GetGames(c *gin.Context) {
+
+	// 🔐 pegar usuário do JWT
+	username := c.GetString("username")
+
+	var userID int
+
+	err := database.DB.QueryRow(
+		"SELECT id FROM users WHERE username=$1",
+		username,
+	).Scan(&userID)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "usuário não encontrado"})
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT id, name, status, year_completed, rating, notes
+		FROM games
+		WHERE user_id=$1
+	`, userID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var games []models.Game
+
+	for rows.Next() {
+		var game models.Game
+
+		err := rows.Scan(
+			&game.ID,
+			&game.Name,
+			&game.Status,
+			&game.YearCompleted,
+			&game.Rating,
+			&game.Notes,
+		)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		games = append(games, game)
+	}
+
+	c.JSON(http.StatusOK, games)
+}
+
+// =========================
+// DELETE GAME
+// =========================
+// DeleteGame godoc
+// @Summary Deleta um jogo
+// @Description Remove um jogo pelo ID
+// @Tags games
+// @Security BearerAuth
+// @Param id path int true "ID do jogo"
+// @Success 200 {object} map[string]string
+// @Router /games/{id} [delete]
+func DeleteGame(c *gin.Context) {
+
+	id := c.Param("id")
+
+	_, err := database.DB.Exec("DELETE FROM games WHERE id=$1", id)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -107,5 +159,7 @@ func CreateGame(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, game)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "jogo deletado com sucesso",
+	})
 }

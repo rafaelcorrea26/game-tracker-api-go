@@ -5,5 +5,6 @@ CREATE TABLE IF NOT EXISTS games (
     year_completed INT,
     rating INT,
     notes TEXT,
+    user_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
