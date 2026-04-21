@@ -4,7 +4,6 @@
 // @host localhost:8080
 // @BasePath /
 
-// 🔐 JWT config pro Swagger
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
@@ -15,7 +14,9 @@ import (
 	"game-tracker-api-go/handlers"
 	"game-tracker-api-go/middlewares"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
@@ -23,40 +24,33 @@ import (
 )
 
 func main() {
-
-	// 🔌 conectar banco
 	database.Connect()
-
-	// 🧱 rodar migrations
 	database.RunMigrations()
 
-	// 🚀 criar servidor
 	r := gin.Default()
 
-	// =========================
-	// 🔓 ROTAS PÚBLICAS
-	// =========================
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	r.POST("/register", handlers.Register)
 	r.POST("/login", handlers.Login)
 
-	// Swagger (público)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// =========================
-	// 🔒 ROTAS PROTEGIDAS
-	// =========================
 
 	auth := r.Group("/")
 	auth.Use(middlewares.AuthMiddleware())
 
 	auth.GET("/games", handlers.GetGames)
 	auth.POST("/games", handlers.CreateGame)
+	auth.PUT("/games/:id", handlers.UpdateGame)
 	auth.DELETE("/games/:id", handlers.DeleteGame)
 
-	// =========================
-	// ▶️ START SERVER
-	// =========================
+	auth.PUT("/change-password", handlers.ChangePassword)
 
 	r.Run(":8080")
 }

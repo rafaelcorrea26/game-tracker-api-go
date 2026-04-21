@@ -11,10 +11,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// =========================
-// INPUTS
-// =========================
-
 type RegisterInput struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
@@ -25,23 +21,14 @@ type LoginInput struct {
 	Password string `json:"password" binding:"required"`
 }
 
-// =========================
-// REGISTER
-// =========================
+type ChangePasswordInput struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required"`
+}
 
-// Register godoc
-// @Summary Criar usuário
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param input body RegisterInput true "Dados do usuário"
-// @Success 201 {object} map[string]string
-// @Router /register [post]
 func Register(c *gin.Context) {
-
 	var input RegisterInput
 
-	// 📥 validar JSON
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "dados inválidos",
@@ -49,7 +36,6 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// 🔐 Hash da senha
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -58,7 +44,6 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// 💾 Inserir no banco
 	_, err = database.DB.Exec(
 		"INSERT INTO users (username, password) VALUES ($1, $2)",
 		input.Username,
@@ -77,24 +62,9 @@ func Register(c *gin.Context) {
 	})
 }
 
-// =========================
-// LOGIN
-// =========================
-
-// Login godoc
-// @Summary Login do usuário
-// @Description Retorna um token JWT
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param input body LoginInput true "Credenciais"
-// @Success 200 {object} map[string]string
-// @Router /login [post]
 func Login(c *gin.Context) {
-
 	var input LoginInput
 
-	// 📥 validar JSON
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "dados inválidos",
@@ -104,7 +74,6 @@ func Login(c *gin.Context) {
 
 	var user models.User
 
-	// 🔎 Buscar usuário no banco
 	err := database.DB.QueryRow(
 		"SELECT id, username, password FROM users WHERE username=$1",
 		input.Username,
@@ -117,7 +86,6 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// 🔐 Comparar senha com hash
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -126,7 +94,6 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// 🎟️ Gerar token JWT
 	token, err := utils.GenerateToken(user.Username)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -137,5 +104,69 @@ func Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": token,
+	})
+}
+
+func ChangePassword(c *gin.Context) {
+	username := c.GetString("username")
+
+	var input ChangePasswordInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "dados inválidos",
+		})
+		return
+	}
+
+	if len(input.NewPassword) < 6 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "a nova senha deve ter pelo menos 6 caracteres",
+		})
+		return
+	}
+
+	var user models.User
+	err := database.DB.QueryRow(
+		"SELECT id, username, password FROM users WHERE username=$1",
+		username,
+	).Scan(&user.ID, &user.Username, &user.Password)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "usuário não encontrado",
+		})
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.CurrentPassword))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "senha atual incorreta",
+		})
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "erro ao gerar hash da nova senha",
+		})
+		return
+	}
+
+	_, err = database.DB.Exec(
+		"UPDATE users SET password=$1 WHERE id=$2",
+		string(hash),
+		user.ID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "não foi possível atualizar a senha",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "senha alterada com sucesso",
 	})
 }
