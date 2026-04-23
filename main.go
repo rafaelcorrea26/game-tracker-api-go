@@ -10,6 +10,8 @@
 package main
 
 import (
+	"os"
+
 	"game-tracker-api-go/database"
 	"game-tracker-api-go/handlers"
 	"game-tracker-api-go/middlewares"
@@ -29,8 +31,13 @@ func main() {
 
 	r := gin.Default()
 
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     []string{frontendURL, "http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -49,8 +56,12 @@ func main() {
 	auth.POST("/games", handlers.CreateGame)
 	auth.PUT("/games/:id", handlers.UpdateGame)
 	auth.DELETE("/games/:id", handlers.DeleteGame)
-
 	auth.PUT("/change-password", handlers.ChangePassword)
 
-	r.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	r.Run(":" + port)
 }
