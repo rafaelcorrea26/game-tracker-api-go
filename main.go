@@ -28,7 +28,10 @@ import (
 
 func main() {
 	database.Connect()
-	database.RunMigrations()
+
+	if os.Getenv("VERCEL") == "" {
+		database.RunMigrations()
+	}
 
 	r := gin.Default()
 
@@ -43,18 +46,14 @@ func main() {
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {
-
-			// local
 			if origin == "http://localhost:5173" {
 				return true
 			}
 
-			// produção
 			if origin == frontendURL {
 				return true
 			}
 
-			// previews da Vercel
 			if strings.HasPrefix(origin, "https://game-tracker-frontend-react-") &&
 				strings.HasSuffix(origin, ".vercel.app") {
 				return true
