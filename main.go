@@ -29,9 +29,8 @@ import (
 func main() {
 	database.Connect()
 
-	if os.Getenv("VERCEL") == "" {
-		database.RunMigrations()
-	}
+	// NÃO roda migrations na Vercel agora
+	// database.RunMigrations()
 
 	r := gin.Default()
 
