@@ -11,6 +11,7 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	"game-tracker-api-go/database"
 	"game-tracker-api-go/handlers"
@@ -31,12 +32,36 @@ func main() {
 
 	r := gin.Default()
 
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+
 	r.Use(cors.New(cors.Config{
-		AllowAllOrigins:  true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: false,
+		AllowCredentials: true,
+		AllowOriginFunc: func(origin string) bool {
+
+			// local
+			if origin == "http://localhost:5173" {
+				return true
+			}
+
+			// produção
+			if origin == frontendURL {
+				return true
+			}
+
+			// previews da Vercel
+			if strings.HasPrefix(origin, "https://game-tracker-frontend-react-") &&
+				strings.HasSuffix(origin, ".vercel.app") {
+				return true
+			}
+
+			return false
+		},
 	}))
 
 	r.POST("/register", handlers.Register)
