@@ -7,4 +7,5 @@ type Game struct {
 	YearCompleted int    `json:"year_completed"`
 	Rating        int    `json:"rating"`
 	Notes         string `json:"notes"`
+	Platform      string `json:"platform"`
 }

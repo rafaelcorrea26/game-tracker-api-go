@@ -45,15 +45,16 @@ func CreateGame(c *gin.Context) {
 	}
 
 	err = database.DB.QueryRow(`
-		INSERT INTO games (name, status, year_completed, rating, notes, user_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, name, status, year_completed, rating, notes
+		INSERT INTO games (name, status, year_completed, rating, notes, platform, user_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, name, status, year_completed, rating, notes, platform
 	`,
 		game.Name,
 		game.Status,
 		game.YearCompleted,
 		game.Rating,
 		game.Notes,
+		game.Platform,
 		userID,
 	).Scan(
 		&game.ID,
@@ -62,6 +63,7 @@ func CreateGame(c *gin.Context) {
 		&game.YearCompleted,
 		&game.Rating,
 		&game.Notes,
+		&game.Platform,
 	)
 
 	if err != nil {
@@ -99,7 +101,7 @@ func GetGames(c *gin.Context) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT id, name, status, year_completed, rating, notes
+		SELECT id, name, status, year_completed, rating, notes, COALESCE(platform, '') as platform
 		FROM games
 		WHERE user_id=$1
 		ORDER BY id DESC
@@ -123,6 +125,7 @@ func GetGames(c *gin.Context) {
 			&game.YearCompleted,
 			&game.Rating,
 			&game.Notes,
+			&game.Platform,
 		)
 
 		if err != nil {
@@ -146,7 +149,7 @@ func GetGames(c *gin.Context) {
 
 // UpdateGame godoc
 // @Summary Atualiza um jogo
-// @Description Atualiza nome, status, ano, nota e notas de um jogo do usuário
+// @Description Atualiza nome, status, ano, nota, notas e plataforma de um jogo do usuário
 // @Tags games
 // @Security BearerAuth
 // @Accept json
@@ -184,15 +187,17 @@ func UpdateGame(c *gin.Context) {
 			status = $2,
 			year_completed = $3,
 			rating = $4,
-			notes = $5
-		WHERE id = $6 AND user_id = $7
-		RETURNING id, name, status, year_completed, rating, notes
+			notes = $5,
+			platform = $6
+		WHERE id = $7 AND user_id = $8
+		RETURNING id, name, status, year_completed, rating, notes, platform
 	`,
 		game.Name,
 		game.Status,
 		game.YearCompleted,
 		game.Rating,
 		game.Notes,
+		game.Platform,
 		id,
 		userID,
 	).Scan(
@@ -202,6 +207,7 @@ func UpdateGame(c *gin.Context) {
 		&game.YearCompleted,
 		&game.Rating,
 		&game.Notes,
+		&game.Platform,
 	)
 
 	if err != nil {
