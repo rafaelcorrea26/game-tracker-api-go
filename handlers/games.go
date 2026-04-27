@@ -45,13 +45,17 @@ func CreateGame(c *gin.Context) {
 	}
 
 	err = database.DB.QueryRow(`
-		INSERT INTO games (name, status, year_completed, rating, notes, platform, user_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, name, status, year_completed, rating, notes, platform
+		INSERT INTO games (name, status, start_date, end_date, rating, notes, platform, user_id)
+		VALUES ($1, $2, NULLIF($3, '')::date, NULLIF($4, '')::date, $5, $6, $7, $8)
+		RETURNING id, name, status,
+		          COALESCE(start_date::text, '') as start_date,
+		          COALESCE(end_date::text, '') as end_date,
+		          rating, notes, platform
 	`,
 		game.Name,
 		game.Status,
-		game.YearCompleted,
+		game.StartDate,
+		game.EndDate,
 		game.Rating,
 		game.Notes,
 		game.Platform,
@@ -60,7 +64,8 @@ func CreateGame(c *gin.Context) {
 		&game.ID,
 		&game.Name,
 		&game.Status,
-		&game.YearCompleted,
+		&game.StartDate,
+		&game.EndDate,
 		&game.Rating,
 		&game.Notes,
 		&game.Platform,
@@ -101,7 +106,10 @@ func GetGames(c *gin.Context) {
 	}
 
 	rows, err := database.DB.Query(`
-		SELECT id, name, status, year_completed, rating, notes, COALESCE(platform, '') as platform
+		SELECT id, name, status,
+		       COALESCE(start_date::text, '') as start_date,
+		       COALESCE(end_date::text, '') as end_date,
+		       rating, notes, COALESCE(platform, '') as platform
 		FROM games
 		WHERE user_id=$1
 		ORDER BY id DESC
@@ -122,7 +130,8 @@ func GetGames(c *gin.Context) {
 			&game.ID,
 			&game.Name,
 			&game.Status,
-			&game.YearCompleted,
+			&game.StartDate,
+			&game.EndDate,
 			&game.Rating,
 			&game.Notes,
 			&game.Platform,
@@ -185,16 +194,21 @@ func UpdateGame(c *gin.Context) {
 		UPDATE games
 		SET name = $1,
 			status = $2,
-			year_completed = $3,
-			rating = $4,
-			notes = $5,
-			platform = $6
-		WHERE id = $7 AND user_id = $8
-		RETURNING id, name, status, year_completed, rating, notes, platform
+			start_date = NULLIF($3, '')::date,
+			end_date = NULLIF($4, '')::date,
+			rating = $5,
+			notes = $6,
+			platform = $7
+		WHERE id = $8 AND user_id = $9
+		RETURNING id, name, status,
+		          COALESCE(start_date::text, '') as start_date,
+		          COALESCE(end_date::text, '') as end_date,
+		          rating, notes, platform
 	`,
 		game.Name,
 		game.Status,
-		game.YearCompleted,
+		game.StartDate,
+		game.EndDate,
 		game.Rating,
 		game.Notes,
 		game.Platform,
@@ -204,7 +218,8 @@ func UpdateGame(c *gin.Context) {
 		&game.ID,
 		&game.Name,
 		&game.Status,
-		&game.YearCompleted,
+		&game.StartDate,
+		&game.EndDate,
 		&game.Rating,
 		&game.Notes,
 		&game.Platform,
