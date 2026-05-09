@@ -13,6 +13,7 @@ func RunMigrations() {
 		"migrations/003_create_users.sql",
 		"migrations/004_add_platform.sql",
 		"migrations/005_add_dates_to_games.sql",
+		"migrations/006_add_image_url_to_games.sql",
 	}
 
 	for _, file := range files {

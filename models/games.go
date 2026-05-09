@@ -9,4 +9,5 @@ type Game struct {
 	Rating    int    `json:"rating"`
 	Notes     string `json:"notes"`
 	Platform  string `json:"platform"`
+	ImageURL  string `json:"image_url"`
 }

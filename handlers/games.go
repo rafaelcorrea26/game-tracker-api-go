@@ -45,12 +45,13 @@ func CreateGame(c *gin.Context) {
 	}
 
 	err = database.DB.QueryRow(`
-		INSERT INTO games (name, status, start_date, end_date, rating, notes, platform, user_id)
-		VALUES ($1, $2, NULLIF($3, '')::date, NULLIF($4, '')::date, $5, $6, $7, $8)
+		INSERT INTO games (name, status, start_date, end_date, rating, notes, platform, user_id, image_url)
+		VALUES ($1, $2, NULLIF($3, '')::date, NULLIF($4, '')::date, $5, $6, $7, $8, NULLIF($9, ''))
 		RETURNING id, name, status,
 		          COALESCE(start_date::text, '') as start_date,
 		          COALESCE(end_date::text, '') as end_date,
-		          rating, notes, platform
+		          rating, notes, platform,
+		          COALESCE(image_url, '') as image_url
 	`,
 		game.Name,
 		game.Status,
@@ -60,6 +61,7 @@ func CreateGame(c *gin.Context) {
 		game.Notes,
 		game.Platform,
 		userID,
+		game.ImageURL,
 	).Scan(
 		&game.ID,
 		&game.Name,
@@ -69,6 +71,7 @@ func CreateGame(c *gin.Context) {
 		&game.Rating,
 		&game.Notes,
 		&game.Platform,
+		&game.ImageURL,
 	)
 
 	if err != nil {
@@ -109,7 +112,8 @@ func GetGames(c *gin.Context) {
 		SELECT id, name, status,
 		       COALESCE(start_date::text, '') as start_date,
 		       COALESCE(end_date::text, '') as end_date,
-		       rating, notes, COALESCE(platform, '') as platform
+		       rating, notes, COALESCE(platform, '') as platform,
+		       COALESCE(image_url, '') as image_url
 		FROM games
 		WHERE user_id=$1
 		ORDER BY id DESC
@@ -135,6 +139,7 @@ func GetGames(c *gin.Context) {
 			&game.Rating,
 			&game.Notes,
 			&game.Platform,
+			&game.ImageURL,
 		)
 
 		if err != nil {
@@ -198,12 +203,14 @@ func UpdateGame(c *gin.Context) {
 			end_date = NULLIF($4, '')::date,
 			rating = $5,
 			notes = $6,
-			platform = $7
-		WHERE id = $8 AND user_id = $9
+			platform = $7,
+			image_url = NULLIF($8, '')
+		WHERE id = $9 AND user_id = $10
 		RETURNING id, name, status,
 		          COALESCE(start_date::text, '') as start_date,
 		          COALESCE(end_date::text, '') as end_date,
-		          rating, notes, platform
+		          rating, notes, platform,
+		          COALESCE(image_url, '') as image_url
 	`,
 		game.Name,
 		game.Status,
@@ -212,6 +219,7 @@ func UpdateGame(c *gin.Context) {
 		game.Rating,
 		game.Notes,
 		game.Platform,
+		game.ImageURL,
 		id,
 		userID,
 	).Scan(
@@ -223,6 +231,7 @@ func UpdateGame(c *gin.Context) {
 		&game.Rating,
 		&game.Notes,
 		&game.Platform,
+		&game.ImageURL,
 	)
 
 	if err != nil {
